@@ -420,6 +420,9 @@
       },
 
       cleanURL: function(url) {
+        if (typeof(url) !== "string") {
+          return "";
+        }
         var parser = document.createElement('a');
         parser.href = url;
         if (parser.hostname === "localhost" ||

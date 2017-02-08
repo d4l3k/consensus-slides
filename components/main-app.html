@@ -10,10 +10,10 @@
     </style>
 
     <lazy-pages attr-for-selected="data-route" selected="{{route}}">
-      <template is="dom-if" restamp data-route="index-page">
+      <template is="dom-if" data-route="index-page">
         <index-page></index-page>
       </template>
-      <template is="dom-if" restamp data-route="presentation-page">
+      <template is="dom-if" data-route="presentation-page">
         <presentation-page params="{{params}}"></presentation-page>
       </template>
     </lazy-pages>
