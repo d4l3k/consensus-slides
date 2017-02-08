@@ -14,6 +14,9 @@
       .main iframe {
         flex-grow: 10000;
       }
+      #canvas-container {
+        height: 210px;
+      }
       .main #info {
         border-left: 1px solid #DDDDDD;
         width: 320px;
@@ -84,9 +87,18 @@
       #engagement {
         text-align: center;
       }
+
+      @media (max-width: 640px) {
+        iframe {
+          display: none;
+        }
+        .main #info {
+          width: 100%;
+        }
+      }
     </style>
 
-    <div id="notfound" hidden$="[[validURL(presentationURL)]]">
+    <div id="notfound" hidden$="[[validURL(config.url)]]">
       <div>
         <h1>Presentation Loading...</h1>
         <p>If it doesn't load momentarily, it may not exist.</p>
@@ -95,11 +107,13 @@
     </div>
 
     <div class="main">
-      <iframe src="[[cleanURL(presentationURL)]]" frameborder="0" allowfullscreen="true" mozallowfullscreen="true" webkitallowfullscreen="true"></iframe>
+      <iframe src="[[cleanURL(config.url)]]" frameborder="0" allowfullscreen="true" mozallowfullscreen="true" webkitallowfullscreen="true"></iframe>
       <div id="info">
         <h1><a href="/">Consensus Slides</a></h1>
         <div id="engagement">
-          <canvas id="canvas" width="300" height="210"></canvas>
+          <div id="canvas-container">
+            <canvas id="canvas"></canvas>
+          </div>
           <div>
             Understanding: [[cleanNum(score)]]
           </div>
@@ -135,7 +149,7 @@
 
     <firebase-app app="index" auth-domain="consensus-964ab.firebaseapp.com" database-url="https://consensus-964ab.firebaseio.com" api-key="AIzaSyDqpPBOnBdVhzx9VAbBkDA5hKBA_0k9T-E">
     </firebase-app>
-    <firebase-document id="firebase" path="/presentations/[[presentationKey]]/url" data="{{presentationURL}}">
+    <firebase-document id="firebase" path="/presentations/[[presentationKey]]/config" data="{{config}}">
     </firebase-document>
     <firebase-query path="/presentations/[[presentationKey]]/votes" data="{{votes}}">
     </firebase-query>
@@ -316,6 +330,7 @@ i.scaleSizeInUnits=i.lastTick.diff(i.firstTick,i.tickUnit,!0),i.unitScale=e.getV
             data: data,
             options: {
               responsive: true,
+              maintainAspectRatio: false,
               legend: {
                 display: false,
               },
@@ -342,7 +357,10 @@ i.scaleSizeInUnits=i.lastTick.diff(i.firstTick,i.tickUnit,!0),i.unitScale=e.getV
                   stacked: true,
                 }],
                 yAxes: [{
-                  stacked: true
+                  stacked: true,
+                  ticks: {
+                    fixedStepSize: 1
+                  }
                 }]
               }
             }

@@ -46,9 +46,21 @@
       <a href="/test">See Demo</a>
 
       <h2>Create a Presentation</h2>
+
+      <p>
       <label>Presentation Embed URL</label>
       <input type="TEXT" value="{{url::input}}" placeholder="https://...">
+      </p>
+
+      <p>
+      <label>Presentation Name (optional)</label>
+      <code>https://consensus.fn.lc/</code>
+      <input type="text" value="{{name::input}}" placeholder="foo">
+      </p>
+
+      <p>
       <button on-tap="create">Create</button>
+      </p>
       <div class="error">{{error}}</div>
 
       <template is="dom-if" if="[[presentationURL]]">
@@ -111,10 +123,13 @@
           return;
         }
         const data = {
-          url: url,
+          config: {
+            url: url
+          }
         }
+        const key = (this.name && this.name.length > 0) ? this.name : undefined;
         this.$.firebase.data = data;
-        this.$.firebase.save("presentations").then(() => {
+        this.$.firebase.save("presentations", key).then(() => {
           const parts = this.$.firebase.path.split("/");
           const key = parts[parts.length-1];
           this.presentationURL = window.location.href+key;
