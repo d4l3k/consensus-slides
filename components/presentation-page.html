@@ -1,0 +1,446 @@
+<link rel="import" href="../bower_components/polymerfire/firebase-document.html">
+<link rel="import" href="../bower_components/polymerfire/firebase-app.html">
+<link rel="import" href="../bower_components/polymerfire/firebase-query.html">
+
+<dom-module id="presentation-page">
+  <template>
+    <style>
+      .main {
+        display: flex;
+        height: 100%;
+      }
+      .main > * {
+        height: 100%;
+      }
+      .main iframe {
+        flex-grow: 10000;
+      }
+      .main #info {
+        width: 320px;
+        display: flex;
+        flex-direction: column;
+        justify-content: space-between;
+      }
+      h1, h2, h3, h4, h5, h6 {
+        margin-top: 0;
+      }
+      h2 {
+        margin: 0;
+      }
+      .main #info > * {
+        margin: 10px;
+      }
+      .main #info > * + * {
+        margin-top: 0;
+      }
+      .input-group {
+        display: flex;
+      }
+      .input-group input {
+        flex-grow: 1000;
+      }
+      #questions {
+        flex-grow: 1000;
+        margin-left: 0 !important;
+        margin-right: 0 !important;
+        border-top: 1px solid #DDDDDD;
+        border-bottom: 1px solid #DDDDDD;
+      }
+      .question {
+        border-left: 2px solid black;
+        padding-left: 10px;
+        min-height: 28px;
+        margin: 10px;
+      }
+      .question .controls {
+        float: right;
+      }
+      .author {
+        font-size: 0.8em;
+        opacity: 0.8;
+      }
+      .scroll {
+        overflow-y: auto;
+        overflow-x: hidden;
+      }
+
+      #notfound {
+        position: fixed;
+        left: 0;
+        right: 0;
+        top: 0;
+        bottom: 0;
+        display: flex;
+        justify-content: center;
+        align-items: center;
+        background-color: rgba(255, 255, 255, 0.8);
+        text-align: center;
+      }
+
+      [hidden] {
+        display: none !important;
+      }
+
+      #engagement {
+        text-align: center;
+      }
+    </style>
+
+    <div id="notfound" hidden$="[[validURL(presentationURL)]]">
+      <div>
+        <h1>Presentation Loading...</h1>
+        <p>If it doesn't load momentarily, it may not exist.</p>
+        <a href="/">Create One?</a>
+      </div>
+    </div>
+
+    <div class="main">
+      <iframe src="[[cleanURL(presentationURL)]]" frameborder="0" allowfullscreen="true" mozallowfullscreen="true" webkitallowfullscreen="true"></iframe>
+      <div id="info">
+        <h1>Consensus Slides</h1>
+        <div id="engagement">
+          <canvas id="canvas" width="300" height="210"></canvas>
+          <div>
+            Understanding: [[cleanNum(score)]]
+          </div>
+          <button class="agree" on-tap="understand">👍 I understand</button>
+          <button class="disagree" on-tap="confused">👎 I'm confused</button>
+        </div>
+        <div>
+          <h2>Questions</h2>
+        </div>
+        <div id="questions" class="scroll">
+          <template is="dom-repeat" items="{{questions}}" sort="sortQuestions">
+            <div class="question">
+              <span class="controls">
+                [[item.score]]
+                <button on-tap="upvote" disabled$="[[alreadyVoted(item, item.score)]]">👍</button>
+              </span>
+              <div>[[item.body]]</div>
+              <span class="author">
+                [[item.name]], [[humanTime(item.time, time)]]
+              </span>
+            </div>
+          </template>
+        </div>
+        <div id="newquestion">
+          Have an unanswered question?
+          <div class="input-group">
+            <input type="text" placeholder="Enter Question Here"
+                               value="{{questionBody::input}}"/>
+            <button on-tap="submitQuestion">Ask Question</button>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <firebase-app auth-domain="consensus-964ab.firebaseapp.com"
+                  database-url="https://consensus-964ab.firebaseio.com"
+                  api-key="AIzaSyDqpPBOnBdVhzx9VAbBkDA5hKBA_0k9T-E">
+    </firebase-app>
+    <firebase-document id="firebase"
+                       path="/presentations/[[presentationKey]]/url"
+                       data="{{presentationURL}}">
+    </firebase-document>
+    <firebase-query path="/presentations/[[presentationKey]]/votes"
+                    data="{{votes}}">
+    </firebase-query>
+    <firebase-query path="/presentations/[[presentationKey]]/comments"
+                    data="{{questions}}">
+    </firebase-query>
+  </template>
+  <script src="../bower_components/moment/min/moment.min.js"></script>
+  <script src="../bower_components/chart.js/dist/Chart.bundle.min.js"></script>
+  <script>
+    const binSize = 60*1000; // 1m
+    const increments = 30;
+    const voteWaitPeriod = 5*1000;
+
+    Polymer({
+      is: 'presentation-page',
+
+      observers: [
+        'renderChart(votes, votes.*, time)',
+        'computePresentationKey(params.page)',
+      ],
+
+      attached: function() {
+        this.updateTime();
+        this.updateTimeInterval = setInterval(this.updateTime.bind(this), 1000);
+      },
+
+      detached: function() {
+        this.clearInterval(this.updateTimeInterval);
+      },
+
+      computePresentationKey: function(page) {
+        this.presentationKey = page;
+      },
+
+
+      zeroPad: function(arr, n) {
+        while(arr.length < n) {
+          arr.push(0);
+        }
+        return arr;
+      },
+
+      binVotes: function() {
+        const bins = [];
+        const now = +new Date;
+        const binStart = now - now%binSize + binSize;
+
+        this.votes.forEach((vote) => {
+          const i = Math.floor((binStart-vote.time) / binSize);
+
+          // Only bin 2*intervals, anything older than that is dead to us.
+          if (i > 2*increments) {
+            return;
+          }
+
+          let bin = bins[i];
+          if (!bin) {
+            bins[i] = bin = [];
+          }
+          bin.push(vote);
+        });
+
+        // Fill in any gaps in bins.
+        for (let i = 0; i < bins.length; i++) {
+          if (!bins[i]) {
+            bins[i] = [];
+          }
+        }
+
+        return bins;
+      },
+
+      countVotes: function(votes) {
+        let pos = 0;
+        let neg = 0;
+        votes.forEach((a) => {
+          if (a.direction >= 0) {
+            pos += a.direction;
+          } else {
+            neg += a.direction;
+          }
+        });
+        return {pos, neg};
+      },
+
+      binSumVotes: function() {
+        const bins = this.binVotes();
+        return bins.map((votes) => {
+          const {pos, neg} = this.countVotes(votes);
+          return {
+            pos, neg, sum: pos+neg,
+          };
+        });
+      },
+
+      calculateEMA: function(sumVotes) {
+        const alpha = 0.5;
+        let lastEMA;
+        for (let i = sumVotes.length-1; i >= 0; i--) {
+          const votes = sumVotes[i];
+          if (i === sumVotes.length-1) {
+            lastEMA = votes.sum;
+          }
+          lastEMA = votes.ema = alpha*votes.sum + (1-alpha)*lastEMA;
+        }
+        return sumVotes;
+      },
+
+      renderChart: function() {
+        const bins = this.calculateEMA(this.binSumVotes()).slice(0, increments);
+
+        // Compute score
+        if (bins.length > 0) {
+          this.score = bins[0].ema;
+        } else {
+          this.score = 0;
+        }
+
+        const datasets = [
+          this.zeroPad(bins.map((a) => a.ema), increments),
+          this.zeroPad(bins.map((a) => a.pos), increments),
+          this.zeroPad(bins.map((a) => a.neg), increments),
+        ];
+
+        if (!this.chart) {
+          const labels = [];
+          for (let i = 0; i < increments; i++) {
+            labels.push(moment.duration(-(i)*binSize).humanize(true));
+          }
+          var data = {
+            labels: labels,
+            datasets: [
+            {
+              label: "EMA",
+              type:'line',
+              data: datasets[0],
+              fill: false,
+              pointRadius: 0,
+              borderColor: '#111111',
+              backgroundColor: '#111111',
+              pointBorderColor: '#111111',
+              pointBackgroundColor: '#111111',
+              pointHoverBackgroundColor: '#111111',
+              pointHoverBorderColor: '#111111',
+            },
+            {
+              type: 'bar',
+              label: "Understand",
+              data: datasets[1],
+              fill: false,
+              backgroundColor: '#2ECC40',
+              borderColor: '#2ECC40',
+              hoverBackgroundColor: '#2ECC40',
+              hoverBorderColor: '#2ECC40',
+            },{
+              type: 'bar',
+              label: "Confused",
+              data: datasets[2],
+              fill: false,
+              backgroundColor: '#FF4136',
+              borderColor: '#FF4136',
+              hoverBackgroundColor: '#FF4136',
+              hoverBorderColor: '#FF4136',
+            },
+            ]
+          };
+          console.log(data);
+          var ctx = this.$.canvas.getContext("2d");
+          this.chart = new Chart(ctx, {
+            type: 'bar',
+            data: data,
+            options: {
+              responsive: true,
+              legend: {
+                display: false,
+              },
+              tooltips: {
+                mode: 'label'
+              },
+              elements: {
+                line: {
+                  fill: false
+                }
+              },
+              animation: {
+                duration: 0,
+              },
+              scales: {
+                xAxes: [{
+                  display: false,
+                  gridLines: {
+                    display: false
+                  },
+                  labels: {
+                    show: false,
+                  },
+                  stacked: true,
+                }],
+                yAxes: [{
+                  stacked: true
+                }]
+              }
+            }
+          });
+        } else {
+          datasets.forEach((data, i) => {
+            this.chart.data.datasets[i].data = data;
+          });
+          this.chart.update();
+        }
+      },
+
+      updateTime: function() {
+        this.time = +new Date;
+      },
+
+      humanTime: function(time) {
+        return moment(time).fromNow();
+      },
+
+      upvote: function(e) {
+        const comment = e.model.item;
+        window.localStorage[this.commentKey(comment)] = true;
+        e.model.set('item.score', comment.score+1);
+      },
+
+      submitQuestion: function() {
+        const question = this.questionBody;
+        if (question.length === 0) {
+          return;
+        }
+
+        this.questionBody = "";
+        const now = +new Date;
+        this.$.firebase.setStoredValue("presentations/"+this.presentationKey+"/comments/"+now, {
+          name: "Anonymous",
+          time: now,
+          body: question,
+          score: 1,
+        });
+      },
+
+      sortQuestions: function(a, b) {
+        return a.time >= b.time ? -1 : 1;
+      },
+
+      understand: function() {
+        this.handleVote(1);
+      },
+
+      confused: function() {
+        this.handleVote(-1);
+      },
+
+      handleVote: function(direction) {
+        if (this.voteTimeout) {
+          alert("You can only vote every " + (voteWaitPeriod/1000).toFixed(1) +
+              " seconds.");
+          return;
+        }
+        const now = +new Date;
+        this.$.firebase.setStoredValue("presentations/"+this.presentationKey+"/votes/"+now, {
+          time: now,
+          direction: direction,
+        });
+
+        // Don't let them vote for another 15s.
+        this.voteTimeout = true;
+        setTimeout(() => {
+          this.voteTimeout = false;
+        }, voteWaitPeriod);
+      },
+
+      cleanURL: function(url) {
+        var parser = document.createElement('a');
+        parser.href = url;
+        if (parser.hostname === "localhost" ||
+            !(parser.protocol === "http:" || parser.protocol === "https:")) {
+          return "";
+        }
+        return parser.href;
+      },
+
+      validURL: function(url) {
+        return this.cleanURL(url).length > 0;
+      },
+
+      cleanNum: function(num) {
+        return num.toFixed(1);
+      },
+
+      commentKey: function(comment) {
+        return "comment-"+comment.$key;
+      },
+
+      alreadyVoted: function(comment, score) {
+        return !!window.localStorage[this.commentKey(comment)];
+      },
+    });
+  </script>
+</dom-module>

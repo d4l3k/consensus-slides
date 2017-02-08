@@ -1,0 +1,58 @@
+<link rel="import" href="../bower_components/polymer/polymer.html">
+<link rel="import" href="../bower_components/lazy-pages/lazy-pages.html">
+
+<dom-module id="main-app">
+  <template>
+    <style>
+      lazy-pages {
+        height: 100%;
+      }
+    </style>
+
+    <lazy-pages attr-for-selected="data-route" selected="{{route}}">
+      <template is="dom-if" restamp data-route="index-page">
+        <index-page></index-page>
+      </template>
+      <template is="dom-if" restamp data-route="presentation-page">
+        <presentation-page params="{{params}}"></presentation-page>
+      </template>
+    </lazy-pages>
+  </template>
+  <script src="../bower_components/page/page.js"></script>
+  <script>
+    Polymer({
+      is: 'main-app',
+
+      observers: [
+        'loadPage(route)',
+      ],
+
+      ready: function() {
+        if (window.location.hash.startsWith('#%21')) {
+          window.location.hash = '#!' + window.location.hash.substr(4);
+        }
+
+        const self = this;
+        page('/:page', function(e) {
+          self.route = 'presentation-page';
+          self.params = e.params;
+        });
+
+        page('/', function() {
+          self.route = 'index-page';
+        });
+        page();
+      },
+
+      loadPage: function(route) {
+        const pageURL = 'components/' + route + '.html';
+        this.importHref(pageURL, null, this.handle404, true);
+      },
+
+      handle404: function() {
+        console.log('404!', this.route);
+        page.redirect('/');
+      }
+    });
+  </script>
+</dom-module>
