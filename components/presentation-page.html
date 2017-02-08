@@ -1,4 +1,5 @@
 <link rel="import" href="../bower_components/polymer/polymer.html">
+<link rel="import" href="../bower_components/paper-spinner/paper-spinner-lite.html">
 <link rel="import" href="../bower_components/polymerfire/firebase-app.html">
 <link rel="import" href="../bower_components/polymerfire/firebase-document.html">
 <link rel="import" href="../bower_components/polymerfire/firebase-query.html">
@@ -6,6 +7,9 @@
 <dom-module id="presentation-page">
   <template>
     <style>
+      :host {
+        --paper-spinner-color: #0074D9;
+      }
       .main {
         display: flex;
         height: 100%;
@@ -78,7 +82,7 @@
         display: flex;
         justify-content: center;
         align-items: center;
-        background-color: rgba(255, 255, 255, 0.8);
+        background-color: rgba(255, 255, 255, 0.9);
         text-align: center;
       }
 
@@ -102,8 +106,9 @@
 
     <div id="notfound" hidden$="[[validURL(config.url)]]">
       <div>
-        <h1>Presentation Loading...</h1>
-        <p>If it doesn't load momentarily, it may not exist.</p>
+        <h1>Loading...</h1>
+        <paper-spinner-lite active></paper-spinner-lite>
+        <p>If the presentation doesn't load momentarily, it may not exist.</p>
         <a href="/">Create One?</a>
       </div>
     </div>

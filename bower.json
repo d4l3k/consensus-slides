@@ -20,6 +20,7 @@
     "chart.js": "chartjs#^2.4.0",
     "polymerfire": "^0.10.3",
     "lazy-pages": "^0.8.5",
-    "page": "visionmedia/page.js#^1.7.1"
+    "page": "visionmedia/page.js#^1.7.1",
+    "paper-spinner": "^1.2.1"
   }
 }
