@@ -1,5 +1,6 @@
-<link rel="import" href="../bower_components/polymerfire/firebase-document.html">
+<link rel="import" href="../bower_components/polymer/polymer.html">
 <link rel="import" href="../bower_components/polymerfire/firebase-app.html">
+<link rel="import" href="../bower_components/polymerfire/firebase-document.html">
 <link rel="import" href="../bower_components/polymerfire/firebase-query.html">
 
 <dom-module id="presentation-page">
@@ -16,6 +17,7 @@
         flex-grow: 10000;
       }
       .main #info {
+        border-left: 1px solid #DDDDDD;
         width: 320px;
         display: flex;
         flex-direction: column;
@@ -97,7 +99,7 @@
     <div class="main">
       <iframe src="[[cleanURL(presentationURL)]]" frameborder="0" allowfullscreen="true" mozallowfullscreen="true" webkitallowfullscreen="true"></iframe>
       <div id="info">
-        <h1>Consensus Slides</h1>
+        <h1><a href="/">Consensus Slides</a></h1>
         <div id="engagement">
           <canvas id="canvas" width="300" height="210"></canvas>
           <div>
@@ -134,7 +136,8 @@
       </div>
     </div>
 
-    <firebase-app auth-domain="consensus-964ab.firebaseapp.com"
+    <firebase-app app="index"
+                  auth-domain="consensus-964ab.firebaseapp.com"
                   database-url="https://consensus-964ab.firebaseio.com"
                   api-key="AIzaSyDqpPBOnBdVhzx9VAbBkDA5hKBA_0k9T-E">
     </firebase-app>
@@ -170,7 +173,7 @@
       },
 
       detached: function() {
-        this.clearInterval(this.updateTimeInterval);
+        clearInterval(this.updateTimeInterval);
       },
 
       computePresentationKey: function(page) {

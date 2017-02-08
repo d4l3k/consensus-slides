@@ -1,33 +1,145 @@
 <link rel="import" href="../bower_components/polymer/polymer.html">
+<link rel="import" href="../bower_components/polymerfire/firebase-app.html">
+<link rel="import" href="../bower_components/polymerfire/firebase-document.html">
 
 <dom-module id="index-page">
   <template>
     <style>
       :host {
         display: block;
-        max-width: 640px;
-        margin: 0 auto;
+        height: 100%;
+        overflow: auto;
       }
       img {
         max-width: 100%;
       }
+      label {
+        font-weight: bold;
+        display: block;
+      }
+      .error {
+        color: red;
+      }
+      pre {
+        white-space: pre-wrap;
+      }
+      .container {
+        max-width: 920px;
+        margin: 0 auto;
+        padding: 0 10px;
+      }
+      code, pre {
+        font-family: monospace;
+        background-color: #111;
+        color: white;
+      }
+      code {
+        padding: 2px 4px;
+      }
+      pre {
+        padding: 10px;
+      }
     </style>
 
-    <h1>Welcome to Consensus Slides!</h1>
-    <p>This is a tool designed to allow people to determine engagement during a
-    lecture or presentation. It lets people to leave comments and show
-    engagement in real-time during your talk.</p>
+    <div class="container">
+      <h1>Welcome to <a href="/">Consensus Slides</a>!</h1>
+      <p>This is a tool designed to allow people to determine engagement during a
+      lecture or presentation. It lets people to leave comments and show
+      engagement in real-time during your talk.</p>
 
-    <a href="/test">See Demo</a>
-    <h2>Screenshots</h2>
-    <a href="https://i.imgur.com/MPYzQc7.png">
-      <img src="https://i.imgur.com/MPYzQc7.png">
-    </a>
+      <a href="/test">See Demo</a>
+
+      <h2>Create a Presentation</h2>
+      <label>Presentation Embed URL</label>
+      <input type="TEXT" value="{{url::input}}" placeholder="https://...">
+      <button on-tap="create">Create</button>
+      <div class="error">{{error}}</div>
+
+      <template is="dom-if" if="[[presentationURL]]">
+        <h3>Presentation Created!</h3>
+        <p>Share the following link with everyone you want to take part in your
+        presentation:</p>
+        <p>
+        <a href="[[presentationURL]]">[[presentationURL]]</a>
+        </p>
+      </template>
+
+      <h3>What's an Embed URL?</h3>
+      <p>An embed URL is a URL that allows you to embed that site into another one.</p>
+      <p> Example Google Slides Embed URL:
+        <a href="https://docs.google.com/presentation/d/1GU5XD2VT2fmL2hj4OMFmXhQKmcCGt6FndlcKBS9qphU/embed">https://docs.google.com/presentation/d/1GU5XD2VT2fmL2hj4OMFmXhQKmcCGt6FndlcKBS9qphU/embed</a>
+      </p>
+      <h4>Format</h4>
+      Often the embed URL is given in a block of HTML that looks like the
+      following. To use this you need to only copy the URL between
+      <code>src="</code> and
+      <code>"</code>.
+<pre>
+&lt;iframe src="<b>https://docs.google.com/presentation/d/1UK57bp3LDQLC48KP2eSmYnrtn6nPHkoN7Nn0syEqK1E/embed?start=false&loop=false&delayms=3000</b>" frameborder="0" width="960" height="569" allowfullscreen="true" mozallowfullscreen="true" webkitallowfullscreen="true"&gt;&lt;/iframe&gt;
+</pre>
+      <h4>Guides on How to Find the URL</h4>
+      <ul>
+        <li><a href="https://support.google.com/docs/answer/37579?hl=en#embed">How to Embed Google Slides</a></li>
+        <li><a href="https://prezi.com/support/article/sharing/embedding-prezis/">How to Embed Prezis</a></li>
+        <li><a href="https://support.office.com/en-us/article/Embed-a-presentation-in-a-web-page-or-blog-19668a1d-2299-4af3-91e1-ae57af723a60">How to Embed an Office 365 Online PowerPoint</a></li>
+      </ul>
+
+      <h2>Screenshots</h2>
+      <a href="https://i.imgur.com/MPYzQc7.png">
+        <img src="https://i.imgur.com/MPYzQc7.png">
+      </a>
+
+      <center>
+        <p>
+          Made by <a href="https://fn.lc">Tristan Rice</a>
+        </p>
+        <p>
+          <a href="https://github.com/d4l3k/consensus-slides">Source Code</a>
+        </p>
+      </center>
+    </div>
+
+    <firebase-app name="index"
+                  auth-domain="consensus-964ab.firebaseapp.com"
+                  database-url="https://consensus-964ab.firebaseio.com"
+                  api-key="AIzaSyDqpPBOnBdVhzx9VAbBkDA5hKBA_0k9T-E">
+    </firebase-app>
+    <firebase-document id="firebase" app-name="index"></firebase-document>
   </template>
   <script src="../bower_components/page/page.js"></script>
   <script>
     Polymer({
       is: 'index-page',
+
+      create: function() {
+        this.error = "";
+        const url = this.cleanURL(this.url);
+        if (url.length === 0) {
+          this.error = "Invalid URL";
+          return;
+        }
+        const data = {
+          url: url,
+        }
+        this.$.firebase.data = data;
+        this.$.firebase.save("presentations").then(() => {
+          const parts = this.$.firebase.path.split("/");
+          const key = parts[parts.length-1];
+          this.presentationURL = window.location.href+key;
+        }).catch((err) => {
+          this.error = err.toString();
+        });
+      },
+
+      cleanURL: function(url) {
+        var parser = document.createElement('a');
+        parser.href = url;
+        if (parser.hostname === "localhost" ||
+            !(parser.protocol === "http:" || parser.protocol === "https:")) {
+          return "";
+        }
+        return parser.href;
+      },
     });
   </script>
 </dom-module>
