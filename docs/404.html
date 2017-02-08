@@ -1,0 +1,47 @@
+<!DOCTYPE html><html><head>
+  <title>Consensus Slides</title>
+  <link href="//fonts.googleapis.com/css?family=Roboto|Roboto+Slab" rel="stylesheet">
+  <script src="bower_components/webcomponentsjs/webcomponents-lite.min.js" async=""></script>
+  <link rel="import" href="components/main-app.html">
+  <style>
+    html, body {
+      margin: 0;
+      padding: 0;
+      height: 100%;
+    }
+    html, body, button, input {
+      font-family: "Roboto", sans-serif;
+      color: #111111;
+    }
+    h1, h2, h3, h4, h5, h6 {
+      font-family: "Roboto Slab", serif;
+    }
+    button {
+      border: none;
+      background-color: #DDDDDD;
+      padding: 5px 10px;
+      cursor: pointer;
+    }
+    button.agree {
+      background-color: #2ECC40;
+    }
+    button.disagree {
+      background-color: #FF4136;
+    }
+    button[disabled] {
+      opacity: 0.5;
+      cursor: inherit;
+    }
+    a {
+      text-decoration: none;
+      color: #0074D9;
+    }
+    a:hover {
+      color: #001f3f;
+    }
+  </style>
+</head>
+<body>
+  <main-app></main-app>
+
+</body></html>
