@@ -21,6 +21,7 @@
     "polymerfire": "^0.10.3",
     "lazy-pages": "^0.8.5",
     "page": "visionmedia/page.js#^1.7.1",
-    "paper-spinner": "^1.2.1"
+    "paper-spinner": "^1.2.1",
+    "iron-localstorage": "^1.0.6"
   }
 }

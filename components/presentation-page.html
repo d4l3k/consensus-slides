@@ -3,6 +3,9 @@
 <link rel="import" href="../bower_components/polymerfire/firebase-app.html">
 <link rel="import" href="../bower_components/polymerfire/firebase-document.html">
 <link rel="import" href="../bower_components/polymerfire/firebase-query.html">
+<link rel="import" href="../bower_components/iron-localstorage/iron-localstorage.html">
+<link rel="import" href="timeline-chart.html">
+<link rel="import" href="individual-indicator.html">
 
 <dom-module id="presentation-page">
   <template>
@@ -20,7 +23,7 @@
       .main iframe {
         flex-grow: 10000;
       }
-      #canvas-container {
+      timeline-chart {
         height: 210px;
       }
       .main #info {
@@ -61,7 +64,7 @@
         min-height: 28px;
         margin: 10px;
       }
-      .question .controls {
+      .question .controls, .right {
         float: right;
       }
       .author {
@@ -118,14 +121,24 @@
       <div id="info">
         <h1><a href="/">Consensus Slides</a></h1>
         <div id="engagement">
-          <div id="canvas-container">
-            <canvas id="canvas"></canvas>
-          </div>
-          <div>
+          <template is="dom-if" if="[[!individual]]">
+            <timeline-chart bins="[[bins]]"
+                            increments="[[increments]]"
+                            bin-size="[[binSize]]">
+            </timeline-chart>
+          </template>
+          <template is="dom-if" if="[[individual]]">
+            <individual-indicator votes="[[votes]]"
+                                  increments="[[increments]]"
+                                  bin-size="[[binSize]]">
+            </individual-indicator>
+          </template>
+          <p>
             Understanding: [[cleanNum(score)]]
-          </div>
+          </p>
           <button class="agree" on-tap="understand">👍 I understand</button>
           <button class="disagree" on-tap="confused">👎 I'm confused</button>
+          <button on-tap="switchView">⚙️</button>
         </div>
         <div>
           <h2>Questions</h2>
@@ -170,9 +183,17 @@
     <firebase-query path="/presentations/[[presentationKey]]/comments"
                     data="{{questions}}">
     </firebase-query>
+
+    <iron-localstorage name="authorid"
+                       value="{{authorid}}"
+                       on-iron-localstorage-load-empty="initializeAuthorID"
+                       ></iron-localstorage>
+    <iron-localstorage name="individual"
+                       value="{{individual}}"
+                       on-iron-localstorage-load-empty="initializeIndividualView"
+                       ></iron-localstorage>
   </template>
   <script src="../bower_components/moment/min/moment.min.js"></script>
-  <script src="../bower_components/chart.js/dist/Chart.bundle.min.js"></script>
   <script>
     const binSize = 60*1000; // 1m
     const increments = 30;
@@ -181,10 +202,19 @@
     Polymer({
       is: 'presentation-page',
 
+      ready: function() {
+        this.binSize = binSize;
+        this.increments = increments;
+      },
+
       observers: [
         'renderChart(votes, votes.*, time)',
         'computePresentationKey(params.page)',
       ],
+
+      switchView: function() {
+        this.individual = !this.individual;
+      },
 
       attached: function() {
         this.updateTime();
@@ -195,16 +225,24 @@
         clearInterval(this.updateTimeInterval);
       },
 
-      computePresentationKey: function(page) {
-        this.presentationKey = page;
+      initializeAuthorID: function() {
+        this.authorid = this.randomString(20);
       },
 
+      initializeIndividualView: function() {
+        this.individual = false;
+      },
 
-      zeroPad: function(arr, n) {
-        while(arr.length < n) {
-          arr.push(0);
-        }
-        return arr;
+      randomString: function(length) {
+        const chars =
+          '0123456789abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ';
+        let result = '';
+        for (var i = length; i > 0; --i) result += chars[Math.floor(Math.random() * chars.length)];
+        return result;
+      },
+
+      computePresentationKey: function(page) {
+        this.presentationKey = page;
       },
 
       binVotes: function() {
@@ -260,6 +298,20 @@
         });
       },
 
+      renderChart: function() {
+        const bins = this.calculateEMA(this.binSumVotes()).slice(0, increments);
+
+        // Compute score
+        if (bins.length > 0) {
+          this.score = bins[0].ema;
+        } else {
+          this.score = 0;
+        }
+
+        this.bins = bins;
+      },
+
+
       calculateEMA: function(sumVotes) {
         const alpha = 0.5;
         let lastEMA;
@@ -271,114 +323,6 @@
           lastEMA = votes.ema = alpha*votes.sum + (1-alpha)*lastEMA;
         }
         return sumVotes;
-      },
-
-      renderChart: function() {
-        const bins = this.calculateEMA(this.binSumVotes()).slice(0, increments);
-
-        // Compute score
-        if (bins.length > 0) {
-          this.score = bins[0].ema;
-        } else {
-          this.score = 0;
-        }
-
-        const datasets = [
-          this.zeroPad(bins.map((a) => a.ema), increments),
-          this.zeroPad(bins.map((a) => a.pos), increments),
-          this.zeroPad(bins.map((a) => a.neg), increments),
-        ];
-
-        if (!this.chart) {
-          const labels = [];
-          for (let i = 0; i < increments; i++) {
-            labels.push(moment.duration(-(i)*binSize).humanize(true));
-          }
-          var data = {
-            labels: labels,
-            datasets: [
-            {
-              label: "EMA",
-              type:'line',
-              data: datasets[0],
-              fill: false,
-              pointRadius: 0,
-              borderColor: '#111111',
-              backgroundColor: '#111111',
-              pointBorderColor: '#111111',
-              pointBackgroundColor: '#111111',
-              pointHoverBackgroundColor: '#111111',
-              pointHoverBorderColor: '#111111',
-            },
-            {
-              type: 'bar',
-              label: "Understand",
-              data: datasets[1],
-              fill: false,
-              backgroundColor: '#2ECC40',
-              borderColor: '#2ECC40',
-              hoverBackgroundColor: '#2ECC40',
-              hoverBorderColor: '#2ECC40',
-            },{
-              type: 'bar',
-              label: "Confused",
-              data: datasets[2],
-              fill: false,
-              backgroundColor: '#FF4136',
-              borderColor: '#FF4136',
-              hoverBackgroundColor: '#FF4136',
-              hoverBorderColor: '#FF4136',
-            },
-            ]
-          };
-          console.log(data);
-          var ctx = this.$.canvas.getContext("2d");
-          this.chart = new Chart(ctx, {
-            type: 'bar',
-            data: data,
-            options: {
-              responsive: true,
-              maintainAspectRatio: false,
-              legend: {
-                display: false,
-              },
-              tooltips: {
-                mode: 'label'
-              },
-              elements: {
-                line: {
-                  fill: false
-                }
-              },
-              animation: {
-                duration: 0,
-              },
-              scales: {
-                xAxes: [{
-                  display: false,
-                  gridLines: {
-                    display: false
-                  },
-                  labels: {
-                    show: false,
-                  },
-                  stacked: true,
-                }],
-                yAxes: [{
-                  stacked: true,
-                  ticks: {
-                    fixedStepSize: 1
-                  }
-                }]
-              }
-            }
-          });
-        } else {
-          datasets.forEach((data, i) => {
-            this.chart.data.datasets[i].data = data;
-          });
-          this.chart.update();
-        }
       },
 
       updateTime: function() {
@@ -408,6 +352,7 @@
           time: now,
           body: question,
           score: 1,
+          authorid: this.authorid,
         });
       },
 
@@ -433,6 +378,7 @@
         this.$.firebase.setStoredValue("presentations/"+this.presentationKey+"/votes/"+now, {
           time: now,
           direction: direction,
+          authorid: this.authorid,
         });
 
         // Don't let them vote for another 15s.

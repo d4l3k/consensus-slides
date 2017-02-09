@@ -1,0 +1,57 @@
+<dom-module id="individual-indicator">
+  <template>
+    <style>
+      :host {
+        display: block;
+      }
+      .indicator {
+        height: 25px;
+        width: 25px;
+        border-radius: 25px;
+        display: inline-block;
+        margin: 5px;
+      }
+    </style>
+
+    <template is="dom-repeat" items="[[latestVotes]]">
+      <span class="indicator" style$="[[indicatorStyle(item)]]"></span>
+    </template>
+  </template>
+  <script>
+    Polymer({
+      is: 'individual-indicator',
+
+      observers: [
+        'renderChart(votes, increments, binSize, votes.*)',
+      ],
+
+      renderChart: function(votes, increments, binSize) {
+        const now = +new Date;
+        const displayPeriod = increments * binSize;
+        const timeout = now - displayPeriod;
+        const added = {};
+        const latestVotes = [];
+
+        for (let i=votes.length-1; i>=0; i--) {
+          const vote = votes[i];
+          if (vote.time <= timeout) {
+            break;
+          }
+          if (added[vote.authorid]) {
+            continue;
+          }
+          added[vote.authorid] = true;
+          latestVotes.push(vote);
+        }
+
+        this.latestVotes = latestVotes;
+      },
+
+      indicatorStyle: function(vote) {
+        return vote.direction === 1 ?
+          "background-color:#2ECC40" :
+          "background-color:#FF4136";
+      },
+    });
+  </script>
+</dom-module>
